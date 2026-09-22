@@ -1,0 +1,22 @@
+{
+  "name": "improved-jeopardy",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node Jeopardy/server/index.js",
+    "dev": "nodemon Jeopardy/server/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@azure/msal-node": "^6.0.1",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-session": "^1.19.0",
+    "nodemon": "^3.1.14"
+  }
+}

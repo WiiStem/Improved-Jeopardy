@@ -1,0 +1,43 @@
+{
+  "games": {
+    "default": {
+      "id": "default",
+      "game": {
+        "title": "Classroom Jeopardy",
+        "teams": [
+          {
+            "id": "97d761f3-0c3a-4f3f-aae6-4b74c5935c79",
+            "name": "Team 1"
+          },
+          {
+            "id": "849410aa-bf30-4b0d-9e77-4eafef15128b",
+            "name": "Team 2"
+          }
+        ],
+        "categories": [
+          {
+            "id": "f9f5ab0c-b6aa-41f4-ad01-fee1baa7746c",
+            "title": "rgrg",
+            "clues": [
+              {
+                "id": "691c09e1-b086-40e7-814b-1871b704fc94",
+                "value": "100",
+                "question": "rgdrg",
+                "answer": "drgdrg"
+              }
+            ]
+          }
+        ]
+      },
+      "progress": {
+        "scores": {
+          "97d761f3-0c3a-4f3f-aae6-4b74c5935c79": 0,
+          "849410aa-bf30-4b0d-9e77-4eafef15128b": 0
+        },
+        "usedClues": []
+      },
+      "createdAt": "2026-09-14T17:35:48.562Z",
+      "updatedAt": "2026-09-21T17:28:10.658Z"
+    }
+  }
+}
