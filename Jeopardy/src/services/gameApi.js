@@ -6,6 +6,7 @@ const request = async (path, options) => {
 }
 
 export const getGame = () => request(`/games/${GAME_ID}`)
+export const getGameByCode = (code) => request(`/public/games/${encodeURIComponent(code)}`)
 export const saveGame = (game) => request(`/games/${GAME_ID}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ game }) })
 export const saveProgress = (scores, usedClues) => request(`/games/${GAME_ID}/progress`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scores, usedClues }) })
 export const resetProgress = () => request(`/games/${GAME_ID}/reset`, { method: 'POST' })

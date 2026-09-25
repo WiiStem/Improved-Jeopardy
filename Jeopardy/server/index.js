@@ -62,7 +62,8 @@ const saveSession = (request) => new Promise((resolve, reject) => request.sessio
 
 function requireAuthentication(request, response, next) {
   if (request.session.user) return next()
-  return response.status(401).json({ error: 'Sign in with Microsoft to access this game.' })
+  return response.status(401).json({ error: `Sign in with Microsoft to access this game.` })
+  //return response.status(401).json({ error: `Sign in with Microsoft to access this game. ${JSON.stringify(request.session)}` })
 }
 
 async function readStore() {
@@ -79,14 +80,34 @@ function validGame(game) {
   return game && typeof game.title === 'string' && Array.isArray(game.teams) && Array.isArray(game.categories)
 }
 
+function generateGameCode(store) {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const makeCode = () => Array.from({ length: 6 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join('')
+
+  let code = ''
+  do {
+    code = makeCode()
+  } while (Object.values(store.games).some((record) => record.code && record.code.toUpperCase() === code))
+
+  return code
+}
+
 async function getOrCreateGame(gameId) {
   const store = await readStore()
   if (!store.games[gameId]) {
     const game = createGame()
-    store.games[gameId] = { id: gameId, game, progress: initialProgress(game), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+    store.games[gameId] = { id: gameId, game, progress: initialProgress(game), code: generateGameCode(store), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
     await writeStore(store)
   }
-  return { store, record: store.games[gameId] }
+
+  const record = store.games[gameId]
+  if (!record.code) {
+    record.code = generateGameCode(store)
+    record.updatedAt = new Date().toISOString()
+    await writeStore(store)
+  }
+
+  return { store, record }
 }
 
 app.get('/api/health', (_request, response) => response.json({ status: 'ok' }))
@@ -143,6 +164,19 @@ app.post('/api/auth/logout', (request, response, next) => {
   })
 })
 
+app.get('/api/public/games/:code', async (request, response, next) => {
+  try {
+    const code = String(request.params.code || '').trim().toUpperCase()
+    const store = await readStore()
+    if (!code) return response.status(400).json({ error: 'A game code is required.' })
+
+    const record = Object.values(store.games).find((item) => String(item.code || '').toUpperCase() === code)
+    if (!record) return response.status(404).json({ error: 'No game was found for that code.' })
+
+    response.json(record)
+  } catch (error) { next(error) }
+})
+
 app.use('/api/games', requireAuthentication)
 
 app.get('/api/games/:gameId', async (request, response, next) => {
@@ -195,6 +229,6 @@ app.use((error, _request, response, next) => {
 
 app.listen(port, () => {
   console.log(`Jeopardy API listening on http://localhost:${port}`)
-  if (!authConfigured) console.warn('Microsoft authentication is disabled: add the MS_ENTRA_* variables described in .env.example.')
+  if (!authConfigured) console.warn('Microsoft authentication is disabled: add the MS_ENTRA_* variables described in .env.')
   if (!process.env.SESSION_SECRET) console.warn('Using an ephemeral session secret. Set SESSION_SECRET before deploying.')
 })
