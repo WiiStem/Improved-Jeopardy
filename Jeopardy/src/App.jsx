@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getGame, resetProgress, saveGame, saveProgress } from './services/gameApi'
+import { createGame, getGame, listGames, resetProgress, saveGame, saveProgress } from './services/gameApi'
 import Login from './pages/Login'
 import JoinGame from './pages/JoinGame'
 import StudentGame from './pages/StudentGame'
@@ -14,6 +14,8 @@ function App() {
   const [auth, setAuth] = useState(null)
   const [authError, setAuthError] = useState('')
   const [game, setGame] = useState(null)
+  const [gameId, setGameId] = useState(null)
+  const [games, setGames] = useState([])
   const [editing, setEditing] = useState(true)
   const [selectedId, setSelectedId] = useState(null)
   const [showAnswer, setShowAnswer] = useState(false)
@@ -61,28 +63,83 @@ function App() {
 
   useEffect(() => {
     let active = true
-    getGame().then((record) => {
-      if (!active) return
-      setGame(record.game)
-      setScores(record.progress.scores)
-      setUsed(record.progress.usedClues)
-      setRoomCode(record.code || '')
-      setLoaded(true)
-    }).catch((requestError) => active && setError(requestError.message))
+    const loadGames = async () => {
+      try {
+        let savedGames = await listGames()
+        const rememberedId = window.localStorage.getItem('jeopardy.activeGameId')
+        const selected = savedGames.find((item) => item.id === rememberedId)
+          || savedGames.find((item) => item.id === 'default')
+          || savedGames[0]
+        const record = selected ? await getGame(selected.id) : await getGame('default')
+        if (!active) return
+        if (!savedGames.length) savedGames = [{ id: record.id, title: record.game.title, createdAt: record.createdAt, updatedAt: record.updatedAt }]
+        setGames(savedGames)
+        setGameId(record.id)
+        setGame(record.game)
+        setScores(record.progress.scores)
+        setUsed(record.progress.usedClues)
+        setRoomCode(record.code || '')
+        setLoaded(true)
+      } catch (requestError) {
+        if (active) setError(requestError.message)
+      }
+    }
+    loadGames()
     return () => { active = false }
   }, [])
 
   useEffect(() => {
-    if (!loaded || !game) return undefined
-    const timer = setTimeout(() => saveGame(game).catch((requestError) => setError(requestError.message)), 300)
-    return () => clearTimeout(timer)
-  }, [game, loaded])
+    if (gameId) window.localStorage.setItem('jeopardy.activeGameId', gameId)
+  }, [gameId])
 
   useEffect(() => {
-    if (!loaded) return undefined
-    const timer = setTimeout(() => saveProgress(scores, used).catch((requestError) => setError(requestError.message)), 300)
+    if (!loaded || !game || !gameId) return undefined
+    const timer = setTimeout(() => {
+      saveGame(gameId, game)
+        .then((record) => setGames((current) => current.map((item) => item.id === record.id ? { ...item, title: record.game.title, updatedAt: record.updatedAt } : item)))
+        .catch((requestError) => setError(requestError.message))
+    }, 500)
     return () => clearTimeout(timer)
-  }, [scores, used, loaded])
+  }, [game, gameId, loaded])
+
+  useEffect(() => {
+    if (!loaded || !gameId) return undefined
+    const timer = setTimeout(() => saveProgress(gameId, scores, used).catch((requestError) => setError(requestError.message)), 500)
+    return () => clearTimeout(timer)
+  }, [gameId, scores, used, loaded])
+
+  const openGame = async (nextGameId) => {
+    try {
+      const record = await getGame(nextGameId)
+      setGameId(record.id)
+      setGame(record.game)
+      setScores(record.progress.scores)
+      setUsed(record.progress.usedClues)
+      setRoomCode(record.code || '')
+      setSelectedId(null)
+      setShowAnswer(false)
+      setError('')
+    } catch (requestError) {
+      setError(requestError.message)
+    }
+  }
+
+  const newGame = async () => {
+    try {
+      const record = await createGame()
+      setGames((current) => [{ id: record.id, title: record.game.title, createdAt: record.createdAt, updatedAt: record.updatedAt }, ...current])
+      setGameId(record.id)
+      setGame(record.game)
+      setScores(record.progress.scores)
+      setUsed(record.progress.usedClues)
+      setRoomCode(record.code || '')
+      setSelectedId(null)
+      setShowAnswer(false)
+      setError('')
+    } catch (requestError) {
+      setError(requestError.message)
+    }
+  }
 
   const selected = useMemo(() => (game?.categories ?? []).flatMap((cat) => cat.clues.map((item) => ({ cat, item }))).find(({ item }) => item.id === selectedId), [game, selectedId])
 
@@ -114,7 +171,7 @@ function App() {
   const reset = async () => {
     close()
     try {
-      const progress = await resetProgress()
+      const progress = await resetProgress(gameId)
       setScores(progress.scores)
       setUsed(progress.usedClues)
     } catch (requestError) { setError(requestError.message) }
@@ -123,18 +180,18 @@ function App() {
   const score = (teamId) => { setScores((current) => ({ ...current, [teamId]: (current[teamId] || 0) + Number(selected.item.value) })); setUsed((current) => [...new Set([...current, selectedId])]); close() }
   const finish = () => { setUsed((current) => [...new Set([...current, selectedId])]); close() }
 
-  if (editing) return <Builder game={game} ready={ready} start={start} update={update} modifyCategory={modifyCategory} handleLogout={confirmLogout} showLogoutConfirm={showLogoutConfirm} cancelLogout={cancelLogout} handleLogoutConfirm={handleLogout} roomCode={roomCode} />
+  if (editing) return <Builder game={game} gameId={gameId} games={games} openGame={openGame} newGame={newGame} error={error} ready={ready} start={start} update={update} modifyCategory={modifyCategory} handleLogout={confirmLogout} showLogoutConfirm={showLogoutConfirm} cancelLogout={cancelLogout} handleLogoutConfirm={handleLogout} roomCode={roomCode} />
   return <main className="game-shell">
     <header className="topbar"><div><p className="eyebrow">LIVE GAME</p><h1>{game.title}</h1></div><div className="header-actions"><button className="secondary-button" onClick={() => setEditing(true)}>Game editor</button><button className="new-game" onClick={reset}>↻ Reset scores</button><button className="logout-button" onClick={confirmLogout}>Log out</button></div></header>
     <section className="scoreboard" aria-label="Scoreboard">{game.teams.map((team, index) => <ScoreCard key={team.id} label={team.name || `Team ${index + 1}`} score={scores[team.id] || 0} tone={index % 2 ? 'pink' : 'gold'} />)}</section>
     <section className="board" aria-label="Jeopardy game board" style={{ '--columns': game.categories.length }}>{game.categories.map((cat) => <div className="category" key={cat.id}><div className="category-title">{cat.title}</div>{cat.clues.map((item) => <button key={item.id} className={`clue ${used.includes(item.id) ? 'used' : ''}`} disabled={used.includes(item.id)} onClick={() => { setSelectedId(item.id); setShowAnswer(false) }}>{used.includes(item.id) ? '' : `$${Number(item.value).toLocaleString()}`}</button>)}</div>)}</section>
-    <p className="hint">Select a clue, reveal its answer, then award its configured value.</p>
-    {selected && <div className="modal-backdrop" role="presentation" onMouseDown={close}><section className="clue-modal" role="dialog" aria-modal="true" aria-label="Selected clue" onMouseDown={(event) => event.stopPropagation()}><button className="close" onClick={close} aria-label="Close clue">×</button><p className="modal-category">{selected.cat.title} · ${Number(selected.item.value).toLocaleString()}</p><p className="clue-text">{showAnswer ? selected.item.answer : selected.item.question}</p>{showAnswer ? <div className="scoring"><p>Who got it right?</p><div>{game.teams.map((team) => <button className="team-score" key={team.id} onClick={() => score(team.id)}>+ {team.name || 'Unnamed team'}</button>)}</div><button className="no-one" onClick={finish}>No correct answer</button></div> : <button className="reveal" onClick={() => setShowAnswer(true)}>Reveal answer</button>}</section></div>}
+    <p className="hint">Select a question, reveal its answer, then award its configured value.</p>
+    {selected && <div className="modal-backdrop" role="presentation" onMouseDown={close}><section className="clue-modal" role="dialog" aria-modal="true" aria-label="Selected question" onMouseDown={(event) => event.stopPropagation()}><button className="close" onClick={close} aria-label="Close question">×</button><p className="modal-category">{selected.cat.title} · ${Number(selected.item.value).toLocaleString()}</p><p className="clue-text">{showAnswer ? selected.item.answer : selected.item.question}</p>{showAnswer ? <div className="scoring"><p>Who got it right?</p><div>{game.teams.map((team) => <button className="team-score" key={team.id} onClick={() => score(team.id)}>+ {team.name || 'Unnamed team'}</button>)}</div><button className="no-one" onClick={finish}>No correct answer</button></div> : <button className="reveal" onClick={() => setShowAnswer(true)}>Reveal answer</button>}</section></div>}
     {showLogoutConfirm && <div className="modal-backdrop" role="presentation" onMouseDown={cancelLogout}><section className="logout-confirmation" role="dialog" aria-modal="true" aria-label="Confirm sign out" onMouseDown={(event) => event.stopPropagation()}><h2>Sign out of Microsoft?</h2><p>You’ll need to sign in again to access the game.</p><div className="logout-actions"><button className="secondary-button" onClick={cancelLogout}>Cancel</button><button className="logout-button" onClick={handleLogout}>Yes, sign out</button></div></section></div>}
   </main>
 }
 
-function Builder({ game, ready, start, update, modifyCategory, handleLogout, showLogoutConfirm, cancelLogout, handleLogoutConfirm, roomCode }) {
+function Builder({ game, gameId, games, openGame, newGame, error, ready, start, update, modifyCategory, handleLogout, showLogoutConfirm, cancelLogout, handleLogoutConfirm, roomCode }) {
   const addTeam = () => update((current) => ({ ...current, teams: [...current.teams, { id: id(), name: `Team ${current.teams.length + 1}` }] }))
   const updateTeam = (teamId, name) => update((current) => ({ ...current, teams: current.teams.map((team) => team.id === teamId ? { ...team, name } : team) }))
   const addCategory = () => update((current) => ({ ...current, categories: [...current.categories, category()] }))
@@ -147,12 +204,58 @@ function Builder({ game, ready, start, update, modifyCategory, handleLogout, sho
     }
   }
 
-  return <main className="builder-shell"><header className="topbar"><div><p className="eyebrow">GAME EDITOR</p><h1>Edit your board</h1></div><div className="header-actions"><button className="new-game" disabled={!ready} onClick={start}>Start game</button><button className="logout-button" onClick={handleLogout}>Log out</button></div></header><div className="host-code-panel"><div className="host-code-info"><p className="eyebrow">HOST CODE</p><h2>{roomCode || 'Generating...'}</h2></div><div className="host-code-actions"><GameJoinQRCode code={roomCode} /><button className="secondary-button" type="button" onClick={copyCode} disabled={!roomCode}>Copy code</button></div></div><p className="builder-intro">Edit the title, teams, categories, clue values, questions, and answers. Changes save automatically to the game server.</p><label className="title-field">Game title<input value={game.title} onChange={(event) => update((current) => ({ ...current, title: event.target.value }))} /></label><section className="editor-section"><div className="section-heading"><h2>Teams</h2><button className="secondary-button" onClick={addTeam}>Add team</button></div><div className="team-editor">{game.teams.map((team, index) => <div className="team-row" key={team.id}><input aria-label={`Team ${index + 1}`} value={team.name} onChange={(event) => updateTeam(team.id, event.target.value)} /><button className="remove-button" onClick={() => update((current) => ({ ...current, teams: current.teams.filter((item) => item.id !== team.id) }))}>Remove</button></div>)}</div></section><section className="editor-section"><div className="section-heading"><h2>Categories and clues</h2><button className="secondary-button" onClick={addCategory}>Add category</button></div><div className="category-editor-list">{game.categories.map((cat, categoryIndex) => <CategoryEditor key={cat.id} cat={cat} index={categoryIndex} modify={modifyCategory} remove={() => update((current) => ({ ...current, categories: current.categories.filter((item) => item.id !== cat.id) }))} />)}</div></section>{!ready && <p className="validation-message">Each category needs a title and at least one clue with a value, question, and answer before the game can start.</p>}{showLogoutConfirm && <div className="modal-backdrop" role="presentation" onMouseDown={cancelLogout}><section className="logout-confirmation" role="dialog" aria-modal="true" aria-label="Confirm sign out" onMouseDown={(event) => event.stopPropagation()}><h2>Sign out of Microsoft?</h2><p>You’ll need to sign in again to access the game.</p><div className="logout-actions"><button className="secondary-button" onClick={cancelLogout}>Cancel</button><button className="logout-button" onClick={handleLogoutConfirm}>Yes, sign out</button></div></section></div>}</main>
+  const gameOptions = games.some((item) => item.id === gameId)
+    ? games
+    : [{ id: gameId, title: game.title }, ...games]
+
+  return <main className="builder-shell">
+    <header className="topbar">
+      <div><p className="eyebrow">GAME EDITOR</p><h1>Edit your board</h1></div>
+      <div className="header-actions"><button className="new-game" disabled={!ready} onClick={start}>Start game</button><button className="logout-button" onClick={handleLogout}>Log out</button></div>
+    </header>
+    <div className="host-code-panel">
+      <div className="host-code-info"><p className="eyebrow">HOST CODE</p><h2>{roomCode || 'Generating...'}</h2></div>
+      <div className="host-code-actions"><GameJoinQRCode code={roomCode} /><button className="secondary-button" type="button" onClick={copyCode} disabled={!roomCode}>Copy code</button></div>
+    </div>
+    <section className="game-library" aria-label="Saved games">
+      <label htmlFor="saved-game-select">Open game
+        <select id="saved-game-select" value={gameId} onChange={(event) => openGame(event.target.value)}>
+          {gameOptions.map((item) => <option key={item.id} value={item.id}>{item.id === gameId ? game.title : item.title || 'Untitled Game'}</option>)}
+        </select>
+      </label>
+      <button className="secondary-button" type="button" onClick={newGame}>New game</button>
+    </section>
+    {error && <p className="login-error" role="alert">{error}</p>}
+    <p className="builder-intro">Edit the title, teams, categories, questions, and answers. Point values are assigned automatically, and changes save automatically.</p>
+    <label className="title-field">Game title<input value={game.title} onChange={(event) => update((current) => ({ ...current, title: event.target.value }))} /></label>
+    <section className="editor-section">
+      <div className="section-heading"><h2>Teams</h2><button className="secondary-button" onClick={addTeam}>Add team</button></div>
+      <div className="team-editor">{game.teams.map((team, index) => <div className="team-row" key={team.id}><input aria-label={`Team ${index + 1}`} value={team.name} onChange={(event) => updateTeam(team.id, event.target.value)} /><button className="remove-button" onClick={() => update((current) => ({ ...current, teams: current.teams.filter((item) => item.id !== team.id) }))}>Remove</button></div>)}</div>
+    </section>
+    <section className="editor-section">
+      <div className="section-heading"><h2>Categories and questions</h2><button className="secondary-button" onClick={addCategory}>Add category</button></div>
+      <div className="category-editor-list">{game.categories.map((cat, categoryIndex) => <CategoryEditor key={cat.id} cat={cat} index={categoryIndex} modify={modifyCategory} remove={() => update((current) => ({ ...current, categories: current.categories.filter((item) => item.id !== cat.id) }))} />)}</div>
+    </section>
+    {!ready && <p className="validation-message">Each category needs a title and at least one question with a value and answer before the game can start.</p>}
+    {showLogoutConfirm && <div className="modal-backdrop" role="presentation" onMouseDown={cancelLogout}><section className="logout-confirmation" role="dialog" aria-modal="true" aria-label="Confirm sign out" onMouseDown={(event) => event.stopPropagation()}><h2>Sign out of Microsoft?</h2><p>You’ll need to sign in again to access the game.</p><div className="logout-actions"><button className="secondary-button" onClick={cancelLogout}>Cancel</button><button className="logout-button" onClick={handleLogoutConfirm}>Yes, sign out</button></div></section></div>}
+  </main>
 }
 
 function CategoryEditor({ cat, index, modify, remove }) {
   const updateClue = (clueId, field, value) => modify(cat.id, (current) => ({ ...current, clues: current.clues.map((item) => item.id === clueId ? { ...item, [field]: value } : item) }))
-  return <article className="category-editor"><div className="category-editor-title"><input aria-label={`Category ${index + 1} title`} value={cat.title} placeholder={`Category ${index + 1} title`} onChange={(event) => modify(cat.id, (current) => ({ ...current, title: event.target.value }))} /><button className="remove-button" onClick={remove}>Remove category</button></div><div className="clue-editor-list">{cat.clues.map((item, clueIndex) => <div className="clue-editor" key={item.id}><label>Value<input type="number" min="1" value={item.value} onChange={(event) => updateClue(item.id, 'value', event.target.value)} /></label><label>Clue<textarea value={item.question} onChange={(event) => updateClue(item.id, 'question', event.target.value)} placeholder="Question or clue" /></label><label>Answer<textarea value={item.answer} onChange={(event) => updateClue(item.id, 'answer', event.target.value)} placeholder="Correct response" /></label><button className="remove-button" aria-label={`Remove clue ${clueIndex + 1}`} onClick={() => modify(cat.id, (current) => ({ ...current, clues: current.clues.filter((clueItem) => clueItem.id !== item.id) }))}>Remove</button></div>)}</div><button className="add-clue" onClick={() => modify(cat.id, (current) => ({ ...current, clues: [...current.clues, clue((current.clues.length + 1) * 100)] }))}>+ Add clue</button></article>
+  return <article className="category-editor">
+    <div className="category-editor-title">
+      <input aria-label={`Category ${index + 1} title`} value={cat.title} placeholder={`Category ${index + 1} title`} onChange={(event) => modify(cat.id, (current) => ({ ...current, title: event.target.value }))} />
+      <button className="remove-button" onClick={remove}>Remove category</button>
+    </div>
+    <div className="clue-editor-list">{cat.clues.map((item, questionIndex) => <div className="clue-editor" key={item.id}>
+      <label>Point value (fixed)<input type="number" min="1" value={item.value} readOnly aria-label={`Question ${questionIndex + 1} point value`} /></label>
+      <label>Question<textarea value={item.question} onChange={(event) => updateClue(item.id, 'question', event.target.value)} placeholder="Question" /></label>
+      <label>Answer<textarea value={item.answer} onChange={(event) => updateClue(item.id, 'answer', event.target.value)} placeholder="Correct response" /></label>
+      <button className="remove-button" aria-label={`Remove question ${questionIndex + 1}`} onClick={() => modify(cat.id, (current) => ({ ...current, clues: current.clues.filter((clueItem) => clueItem.id !== item.id) }))}>Remove</button>
+    </div>)}</div>
+    <button className="add-clue" onClick={() => modify(cat.id, (current) => ({ ...current, clues: [...current.clues, clue((current.clues.length + 1) * 100)] }))}>+ Add question</button>
+  </article>
 }
 
 function ScoreCard({ label, score, tone }) { return <article className={`score-card ${tone}`}><span>{label}</span><strong>${score.toLocaleString()}</strong></article> }

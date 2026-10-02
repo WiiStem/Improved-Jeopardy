@@ -72,9 +72,11 @@ Then open the Vite app and click "Continue with Outlook". If the tenant, client 
 
 ## API
 
-The app uses the `default` game record. The backend also supports any game ID.
+The Game Editor can create new games and reopen saved games. It remembers the last-opened game in the browser, and editor changes save automatically. Game records are currently persisted in `data/games.json`.
 
 - `GET /api/health` — server health check
+- `GET /api/games` — list saved games
+- `POST /api/games` — create a new empty game
 - `GET /api/games/:gameId` — retrieve a game and its progress; creates an empty record if it does not exist
 - `PUT /api/games/:gameId` — save game configuration with `{ "game": ... }`
 - `PUT /api/games/:gameId/progress` — save `{ "scores": ..., "usedClues": [...] }`

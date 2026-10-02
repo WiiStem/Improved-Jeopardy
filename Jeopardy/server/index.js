@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { randomBytes, timingSafeEqual } from 'node:crypto'
+import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const rootDir = path.resolve(__dirname, '..')
@@ -178,6 +178,29 @@ app.get('/api/public/games/:code', async (request, response, next) => {
 })
 
 app.use('/api/games', requireAuthentication)
+
+app.get('/api/games', async (_request, response, next) => {
+  try {
+    const store = await readStore()
+    const games = Object.values(store.games)
+      .map(({ id, game, createdAt, updatedAt }) => ({ id, title: game.title, createdAt, updatedAt }))
+      .sort((first, second) => second.updatedAt.localeCompare(first.updatedAt))
+    response.json(games)
+  } catch (error) { next(error) }
+})
+
+app.post('/api/games', async (_request, response, next) => {
+  try {
+    const store = await readStore()
+    const gameId = randomUUID()
+    const game = { ...createGame(), title: 'Untitled Game' }
+    const now = new Date().toISOString()
+    const record = { id: gameId, game, progress: initialProgress(game), code: generateGameCode(store), createdAt: now, updatedAt: now }
+    store.games[gameId] = record
+    await writeStore(store)
+    response.status(201).json(record)
+  } catch (error) { next(error) }
+})
 
 app.get('/api/games/:gameId', async (request, response, next) => {
   try { const { record } = await getOrCreateGame(request.params.gameId); response.json(record) } catch (error) { next(error) }

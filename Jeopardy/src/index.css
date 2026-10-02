@@ -445,6 +445,31 @@ h2 {
   color: #c2ccff;
 }
 
+.game-library {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  margin: 12px 0;
+  padding: 14px 0;
+  border-block: 1px solid #3d52bb;
+}
+
+.game-library label {
+  display: grid;
+  gap: 6px;
+  width: min(100%, 460px);
+  font-weight: 700;
+}
+
+.game-library select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #5268d3;
+  border-radius: 7px;
+  color: #fff;
+  background: #090f46;
+}
+
 .title-field {
   display: block;
   max-width: 580px;
@@ -545,6 +570,15 @@ h2 {
   .topbar {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .game-library {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .game-library label {
+    width: 100%;
   }
 
   .header-actions {
