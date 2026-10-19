@@ -37,8 +37,465 @@
         "usedClues": []
       },
       "createdAt": "2026-09-14T17:35:48.562Z",
-      "updatedAt": "2026-10-01T18:11:12.074Z",
+      "updatedAt": "2026-10-15T16:52:55.325Z",
       "code": "XEKY2U"
+    },
+    "008fb7fd-c6ea-435d-836d-2bdd70a04f68": {
+      "id": "008fb7fd-c6ea-435d-836d-2bdd70a04f68",
+      "game": {
+        "title": "Jeopardy Template",
+        "teams": [
+          {
+            "id": "491cd420-d1b1-4b5b-a0bb-1801ded6a40b",
+            "name": "Team 1"
+          }
+        ],
+        "categories": [
+          {
+            "id": "28f3fcb7-4bb9-4e37-a4b0-fe65aef9c050",
+            "title": "Test Heading 1",
+            "clues": [
+              {
+                "id": "d54b44e9-0a16-49d0-a1ee-6ca4a444e3e0",
+                "value": 100,
+                "question": "Column 1 Question 1",
+                "answer": "Column 1 Answer 1"
+              },
+              {
+                "id": "822254d2-1625-4477-817a-37694513b52b",
+                "value": 200,
+                "question": "Column 1 Question 2",
+                "answer": "Column 1 Answer 2"
+              },
+              {
+                "id": "5ad30a78-42e2-41bb-ab0a-b48dd0fca459",
+                "value": 300,
+                "question": "Column 1 Question 3",
+                "answer": "Column 1 Answer 3"
+              },
+              {
+                "id": "02b88c86-0b1f-4713-b4b1-65825b591238",
+                "value": 400,
+                "question": "Column 1 Question 4",
+                "answer": "Column 1 Answer 4"
+              },
+              {
+                "id": "002792a2-cec3-47e7-b889-ba600cba9099",
+                "value": 500,
+                "question": "Column 1 Question 5",
+                "answer": "Column 1 Answer 5"
+              }
+            ]
+          },
+          {
+            "id": "e1c238b7-9a95-4a37-9b92-51f1bc2a07cb",
+            "title": "Column 2",
+            "clues": [
+              {
+                "id": "64d3e1e9-8c32-4c6e-a536-ebc24bd7db0e",
+                "value": 100,
+                "question": "Column 2 Question 1",
+                "answer": "Column 2 Answer 1"
+              },
+              {
+                "id": "d5c51b5f-958d-4dad-8fa6-f376bfddeb89",
+                "value": 200,
+                "question": "Column 2 Question 2",
+                "answer": "Column 2 Answer 2"
+              },
+              {
+                "id": "06cecf0c-327a-47ec-8f12-14d62cbef1fc",
+                "value": 300,
+                "question": "Column 2 Question 3",
+                "answer": "Column 2 Answer 3"
+              },
+              {
+                "id": "a194696e-e3df-4ecc-8386-75d3fc46a424",
+                "value": 400,
+                "question": "Column 2 Question 4",
+                "answer": "Column 2 Answer 4"
+              },
+              {
+                "id": "0c286343-9cf9-47cf-9f01-6705b69a11ce",
+                "value": 500,
+                "question": "Column 2 Question 5",
+                "answer": "Column 2 Answer 5"
+              }
+            ]
+          },
+          {
+            "id": "ef298035-72b7-4198-93ac-001a258962c7",
+            "title": "Column 3",
+            "clues": [
+              {
+                "id": "461deace-8a9e-48ab-b48e-863499a0539f",
+                "value": 100,
+                "question": "Column 3 Question 1",
+                "answer": "Column 3 Answer 1"
+              },
+              {
+                "id": "be0af13e-b187-4383-8208-d54d98239863",
+                "value": 200,
+                "question": "Column 3 Question 2",
+                "answer": "Column 3 Answer 2"
+              },
+              {
+                "id": "da160f03-a906-437e-8d60-a635964f5532",
+                "value": 300,
+                "question": "Column 3 Question 3",
+                "answer": "Column 3 Answer 3"
+              },
+              {
+                "id": "e51c457a-873e-4750-b3f1-d668275ed0b5",
+                "value": 400,
+                "question": "Column 3 Question 4",
+                "answer": "Column 3 Answer 4"
+              },
+              {
+                "id": "af5514b0-c60b-43be-9385-e1969a9ebfcb",
+                "value": 500,
+                "question": "Column 3 Question 5",
+                "answer": "Column 3 Answer 5"
+              }
+            ]
+          },
+          {
+            "id": "a33f26c5-82c6-4b05-9d78-dcf1e71097e0",
+            "title": "Column 4",
+            "clues": [
+              {
+                "id": "232b4397-2cb5-470d-b6a9-4a2fe3efde10",
+                "value": 100,
+                "question": "Column 4 Question 1",
+                "answer": "Column 4 Answer 1"
+              },
+              {
+                "id": "017f23f7-ee47-47fa-a591-12e818130ccb",
+                "value": 200,
+                "question": "Column 4 Question 2",
+                "answer": "Column 4 Answer 2"
+              },
+              {
+                "id": "00c8d665-caac-44af-a37a-6debcbb321ae",
+                "value": 300,
+                "question": "Column 4 Question 3",
+                "answer": "Column 4 Answer 3"
+              },
+              {
+                "id": "851649f0-b5a4-4f59-9223-b3da793eb999",
+                "value": 400,
+                "question": "Column 4 Question 4",
+                "answer": "Column 4 Answer 4"
+              },
+              {
+                "id": "ee20eb70-dbe8-47ba-9e83-31738ee06d74",
+                "value": 500,
+                "question": "Column 4 Question 5",
+                "answer": "Column 4 Answer 5"
+              }
+            ]
+          },
+          {
+            "id": "d34d1e26-5458-40e0-856f-bf0b9fa69ca4",
+            "title": "Column 5",
+            "clues": [
+              {
+                "id": "dc7f1841-9914-4126-9078-32b3717b5b2e",
+                "value": 100,
+                "question": "Column 5 Question 1",
+                "answer": "Column 5 Answer 1"
+              },
+              {
+                "id": "f71d372b-e0ee-460a-a0fe-c42979df4799",
+                "value": 200,
+                "question": "Column 5 Question 2",
+                "answer": "Column 5 Answer 2"
+              },
+              {
+                "id": "d2440406-1e23-4f64-a3fd-98f15220a795",
+                "value": 300,
+                "question": "Column 5 Question 3",
+                "answer": "Column 5 Answer 3"
+              },
+              {
+                "id": "42f37d8a-d593-478b-a7b2-2114df82978a",
+                "value": 400,
+                "question": "Column 5 Question 4",
+                "answer": "Column 5 Answer 4"
+              },
+              {
+                "id": "be207a22-5108-4b05-b7d8-54743357e8ed",
+                "value": 500,
+                "question": "Column 5 Question 5",
+                "answer": "Column 5 Answer 5"
+              }
+            ]
+          },
+          {
+            "id": "0cfe6f47-2522-4e90-8f87-48a628e3a841",
+            "title": "Final Category",
+            "clues": [
+              {
+                "id": "300a2db8-4fd3-40da-9c6a-85aa2e85b437",
+                "value": 100,
+                "question": "Final Question",
+                "answer": "Final Answer"
+              }
+            ]
+          }
+        ]
+      },
+      "progress": {
+        "scores": {
+          "491cd420-d1b1-4b5b-a0bb-1801ded6a40b": 0
+        },
+        "usedClues": [],
+        "finalWagers": {},
+        "finalOutcomes": {},
+        "finalRevealed": false,
+        "finalResolved": false
+      },
+      "code": "A498UR",
+      "createdAt": "2026-10-14T16:35:07.815Z",
+      "updatedAt": "2026-10-19T16:13:21.702Z"
+    },
+    "700764c5-2112-4b25-9b5b-ac1e54e97453": {
+      "id": "700764c5-2112-4b25-9b5b-ac1e54e97453",
+      "game": {
+        "title": "JeopardyTemplate",
+        "teams": [
+          {
+            "id": "042525e8-4d95-4346-b9f3-88d1afdd1af8",
+            "name": "Team 1"
+          }
+        ],
+        "categories": [
+          {
+            "id": "8afb125a-2771-476b-b46a-3dd724d4c7b5",
+            "title": "Test Heading 1",
+            "clues": [
+              {
+                "id": "bc9c8778-6b3e-419e-936a-4ac9184b5a4d",
+                "value": 100,
+                "question": "Column 1 Question 1",
+                "answer": "Column 1 Answer 1"
+              },
+              {
+                "id": "a7f69cf9-32b1-4a37-b050-c06d2bc2acc3",
+                "value": 200,
+                "question": "Column 1 Question 2",
+                "answer": "Column 1 Answer 2"
+              },
+              {
+                "id": "79861851-0195-4227-9560-d50cf4f68225",
+                "value": 300,
+                "question": "Column 1 Question 3",
+                "answer": "Column 1 Answer 3"
+              },
+              {
+                "id": "636bde5b-2ddb-448e-b304-a70f0d3fbf14",
+                "value": 400,
+                "question": "Column 1 Question 4",
+                "answer": "Column 1 Answer 4"
+              },
+              {
+                "id": "d3cd02ec-b8a2-4217-b571-1dd874209120",
+                "value": 500,
+                "question": "Column 1 Question 5",
+                "answer": "Column 1 Answer 5"
+              }
+            ]
+          },
+          {
+            "id": "c39ae4f7-1347-4e6b-bbed-b8e2c6ece8d1",
+            "title": "Column 2",
+            "clues": [
+              {
+                "id": "92712f3f-7b1a-4a42-b44a-842f31d05b5c",
+                "value": 100,
+                "question": "Column 2 Question 1",
+                "answer": "Column 2 Answer 1"
+              },
+              {
+                "id": "63482c2e-ccbf-44f8-aee6-13d89fbd6771",
+                "value": 200,
+                "question": "Column 2 Question 2",
+                "answer": "Column 2 Answer 2"
+              },
+              {
+                "id": "d13d81b7-f203-4716-b2de-43fe504f011e",
+                "value": 300,
+                "question": "Column 2 Question 3",
+                "answer": "Column 2 Answer 3"
+              },
+              {
+                "id": "6aafe309-85c9-4044-b5c4-5e678e91ddb1",
+                "value": 400,
+                "question": "Column 2 Question 4",
+                "answer": "Column 2 Answer 4"
+              },
+              {
+                "id": "57781155-b168-44f7-9949-236ae9a4a59a",
+                "value": 500,
+                "question": "Column 2 Question 5",
+                "answer": "Column 2 Answer 5"
+              }
+            ]
+          },
+          {
+            "id": "1416907c-6e43-4ac2-95bb-40be7c810465",
+            "title": "Column 3",
+            "clues": [
+              {
+                "id": "db4efd54-cd31-445b-8a33-275eaacd9531",
+                "value": 100,
+                "question": "Column 3 Question 1",
+                "answer": "Column 3 Answer 1"
+              },
+              {
+                "id": "7fa3a5c0-37e3-4be7-9511-f9a8342ab850",
+                "value": 200,
+                "question": "Column 3 Question 2",
+                "answer": "Column 3 Answer 2"
+              },
+              {
+                "id": "9dd2a988-90fe-4067-8ab3-809fb1ba00ea",
+                "value": 300,
+                "question": "Column 3 Question 3",
+                "answer": "Column 3 Answer 3"
+              },
+              {
+                "id": "31d10598-4c67-4e75-9340-af7e4b94d69e",
+                "value": 400,
+                "question": "Column 3 Question 4",
+                "answer": "Column 3 Answer 4"
+              },
+              {
+                "id": "bf41ac11-bf94-46c3-a808-109635b807fe",
+                "value": 500,
+                "question": "Column 3 Question 5",
+                "answer": "Column 3 Answer 5"
+              }
+            ]
+          },
+          {
+            "id": "248399c7-5eeb-4dc6-837e-bb8be094253a",
+            "title": "Column 4",
+            "clues": [
+              {
+                "id": "6be227b4-5564-49d6-b5ea-af3c749dffc4",
+                "value": 100,
+                "question": "Column 4 Question 1",
+                "answer": "Column 4 Answer 1"
+              },
+              {
+                "id": "fe8d2659-ed52-4dc5-a57d-948cdd853ad8",
+                "value": 200,
+                "question": "Column 4 Question 2",
+                "answer": "Column 4 Answer 2"
+              },
+              {
+                "id": "3280cf90-498e-4e7f-b24c-4e68cb26e636",
+                "value": 300,
+                "question": "Column 4 Question 3",
+                "answer": "Column 4 Answer 3"
+              },
+              {
+                "id": "b28b41f4-9b19-44de-a6f9-68fe24e5f4b0",
+                "value": 400,
+                "question": "Column 4 Question 4",
+                "answer": "Column 4 Answer 4"
+              },
+              {
+                "id": "4e0fc849-8dc7-43af-bb8a-0283a7e542bc",
+                "value": 500,
+                "question": "Column 4 Question 5",
+                "answer": "Column 4 Answer 5"
+              }
+            ]
+          },
+          {
+            "id": "0a0f5fb3-f3f1-4291-a616-18ccebf7360c",
+            "title": "Column 5",
+            "clues": [
+              {
+                "id": "aa8d9639-7580-43de-9634-7022a39a6278",
+                "value": 100,
+                "question": "Column 5 Question 1",
+                "answer": "Column 5 Answer 1"
+              },
+              {
+                "id": "777b78ec-de4f-4bd2-b41d-37d561b4b994",
+                "value": 200,
+                "question": "Column 5 Question 2",
+                "answer": "Column 5 Answer 2"
+              },
+              {
+                "id": "464549bd-90ca-41e8-83af-2f0bf9cec48c",
+                "value": 300,
+                "question": "Column 5 Question 3",
+                "answer": "Column 5 Answer 3"
+              },
+              {
+                "id": "ab3042ce-6cde-499a-adae-28c6e19f75ff",
+                "value": 400,
+                "question": "Column 5 Question 4",
+                "answer": "Column 5 Answer 4"
+              },
+              {
+                "id": "425a91e5-4c55-4b33-92a0-f46c9c04d981",
+                "value": 500,
+                "question": "Column 5 Question 5",
+                "answer": "Column 5 Answer 5"
+              }
+            ]
+          }
+        ],
+        "finalJeopardy": {
+          "category": "Final Category",
+          "question": "Final Question",
+          "answer": "Final Answer"
+        }
+      },
+      "progress": {
+        "scores": {
+          "042525e8-4d95-4346-b9f3-88d1afdd1af8": 7300
+        },
+        "usedClues": [
+          "bc9c8778-6b3e-419e-936a-4ac9184b5a4d",
+          "92712f3f-7b1a-4a42-b44a-842f31d05b5c",
+          "db4efd54-cd31-445b-8a33-275eaacd9531",
+          "6be227b4-5564-49d6-b5ea-af3c749dffc4",
+          "aa8d9639-7580-43de-9634-7022a39a6278",
+          "a7f69cf9-32b1-4a37-b050-c06d2bc2acc3",
+          "63482c2e-ccbf-44f8-aee6-13d89fbd6771",
+          "7fa3a5c0-37e3-4be7-9511-f9a8342ab850",
+          "fe8d2659-ed52-4dc5-a57d-948cdd853ad8",
+          "9dd2a988-90fe-4067-8ab3-809fb1ba00ea",
+          "777b78ec-de4f-4bd2-b41d-37d561b4b994",
+          "3280cf90-498e-4e7f-b24c-4e68cb26e636",
+          "464549bd-90ca-41e8-83af-2f0bf9cec48c",
+          "d13d81b7-f203-4716-b2de-43fe504f011e",
+          "79861851-0195-4227-9560-d50cf4f68225",
+          "636bde5b-2ddb-448e-b304-a70f0d3fbf14",
+          "6aafe309-85c9-4044-b5c4-5e678e91ddb1",
+          "31d10598-4c67-4e75-9340-af7e4b94d69e",
+          "b28b41f4-9b19-44de-a6f9-68fe24e5f4b0",
+          "ab3042ce-6cde-499a-adae-28c6e19f75ff",
+          "d3cd02ec-b8a2-4217-b571-1dd874209120",
+          "57781155-b168-44f7-9949-236ae9a4a59a",
+          "bf41ac11-bf94-46c3-a808-109635b807fe",
+          "4e0fc849-8dc7-43af-bb8a-0283a7e542bc",
+          "425a91e5-4c55-4b33-92a0-f46c9c04d981"
+        ],
+        "finalWagers": {},
+        "finalOutcomes": {},
+        "finalRevealed": false,
+        "finalResolved": false
+      },
+      "code": "3A4FD2",
+      "createdAt": "2026-10-14T16:37:21.022Z",
+      "updatedAt": "2026-10-15T18:21:00.894Z"
     }
   }
 }

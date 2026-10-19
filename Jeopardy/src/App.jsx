@@ -1,14 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { createGame, getGame, listGames, resetProgress, saveGame, saveProgress } from './services/gameApi'
+import { createGame, deleteGame as deleteSavedGame, getGame, importGoogleSheet, listGames, resetProgress, saveGame, saveProgress } from './services/gameApi'
 import Login from './pages/Login'
 import JoinGame from './pages/JoinGame'
 import StudentGame from './pages/StudentGame'
-import GameJoinQRCode from './components/QRCode'
+import GameEditor from './pages/GameEditor'
+import GameBoard from './components/GameBoard'
 import './index.css'
-
-const id = () => crypto.randomUUID()
-const clue = (value = 100) => ({ id: id(), value, question: '', answer: '' })
-const category = () => ({ id: id(), title: '', clues: [clue()] })
 
 function App() {
   const [auth, setAuth] = useState(null)
@@ -22,6 +19,11 @@ function App() {
   const [used, setUsed] = useState([])
   const [scores, setScores] = useState({})
   const [loaded, setLoaded] = useState(false)
+  const [finalWagers, setFinalWagers] = useState({})
+  const [finalOutcomes, setFinalOutcomes] = useState({})
+  const [finalRevealed, setFinalRevealed] = useState(false)
+  const [finalResolved, setFinalResolved] = useState(false)
+  const [finalOpen, setFinalOpen] = useState(false)
   const [error, setError] = useState('')
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [joinMode, setJoinMode] = useState(() => {
@@ -33,6 +35,15 @@ function App() {
   })
   const [guestGame, setGuestGame] = useState(null)
   const [roomCode, setRoomCode] = useState('')
+
+  const applyProgress = (progress) => {
+    setScores(progress.scores || {})
+    setUsed(progress.usedClues || [])
+    setFinalWagers(progress.finalWagers || {})
+    setFinalOutcomes(progress.finalOutcomes || {})
+    setFinalRevealed(Boolean(progress.finalRevealed))
+    setFinalResolved(Boolean(progress.finalResolved))
+  }
 
   const readJoinCodeFromUrl = () => {
     if (typeof window === 'undefined') return ''
@@ -76,8 +87,7 @@ function App() {
         setGames(savedGames)
         setGameId(record.id)
         setGame(record.game)
-        setScores(record.progress.scores)
-        setUsed(record.progress.usedClues)
+        applyProgress(record.progress)
         setRoomCode(record.code || '')
         setLoaded(true)
       } catch (requestError) {
@@ -104,20 +114,20 @@ function App() {
 
   useEffect(() => {
     if (!loaded || !gameId) return undefined
-    const timer = setTimeout(() => saveProgress(gameId, scores, used).catch((requestError) => setError(requestError.message)), 500)
+      const timer = setTimeout(() => saveProgress(gameId, scores, used, finalWagers, finalOutcomes, finalRevealed, finalResolved).catch((requestError) => setError(requestError.message)), 500)
     return () => clearTimeout(timer)
-  }, [gameId, scores, used, loaded])
+  }, [gameId, scores, used, finalWagers, finalOutcomes, finalRevealed, finalResolved, loaded])
 
   const openGame = async (nextGameId) => {
     try {
       const record = await getGame(nextGameId)
       setGameId(record.id)
       setGame(record.game)
-      setScores(record.progress.scores)
-      setUsed(record.progress.usedClues)
+      applyProgress(record.progress)
       setRoomCode(record.code || '')
       setSelectedId(null)
       setShowAnswer(false)
+      setFinalOpen(false)
       setError('')
     } catch (requestError) {
       setError(requestError.message)
@@ -130,14 +140,47 @@ function App() {
       setGames((current) => [{ id: record.id, title: record.game.title, createdAt: record.createdAt, updatedAt: record.updatedAt }, ...current])
       setGameId(record.id)
       setGame(record.game)
-      setScores(record.progress.scores)
-      setUsed(record.progress.usedClues)
+      applyProgress(record.progress)
       setRoomCode(record.code || '')
       setSelectedId(null)
       setShowAnswer(false)
+      setFinalOpen(false)
       setError('')
     } catch (requestError) {
       setError(requestError.message)
+    }
+  }
+
+  const deleteGame = async (deletedGameId) => {
+    try {
+      await deleteSavedGame(deletedGameId)
+      const remainingGames = await listGames()
+      setGames(remainingGames)
+      setError('')
+      if (deletedGameId === gameId) {
+        if (remainingGames.length) await openGame(remainingGames[0].id)
+        else await newGame()
+      }
+      return true
+    } catch (requestError) {
+      setError(requestError.message)
+      return false
+    }
+  }
+
+  const importSheet = async (sheetUrl, cellRange) => {
+    try {
+      const record = await importGoogleSheet(gameId, sheetUrl, cellRange)
+      setGame(record.game)
+      applyProgress(record.progress)
+      setRoomCode(record.code || '')
+      setSelectedId(null)
+      setShowAnswer(false)
+      setFinalOpen(false)
+      setError('')
+    } catch (requestError) {
+      setError(requestError.message)
+      throw requestError
     }
   }
 
@@ -172,29 +215,40 @@ function App() {
     close()
     try {
       const progress = await resetProgress(gameId)
-      setScores(progress.scores)
-      setUsed(progress.usedClues)
+      applyProgress(progress)
+      setFinalOpen(false)
     } catch (requestError) { setError(requestError.message) }
   }
   const start = () => { if (ready) { reset(); setEditing(false) } }
   const score = (teamId) => { setScores((current) => ({ ...current, [teamId]: (current[teamId] || 0) + Number(selected.item.value) })); setUsed((current) => [...new Set([...current, selectedId])]); close() }
   const finish = () => { setUsed((current) => [...new Set([...current, selectedId])]); close() }
+  const totalClues = game.categories.reduce((total, category) => total + category.clues.length, 0)
+  const allCluesAnswered = totalClues > 0 && used.length >= totalClues
+  const finalJeopardyReady = game.finalJeopardy?.category?.trim() && game.finalJeopardy?.question?.trim() && game.finalJeopardy?.answer?.trim()
+  const beginFinalJeopardy = () => {
+    if (!Object.keys(finalWagers).length) setFinalWagers(Object.fromEntries(game.teams.map((team) => [team.id, Math.max(0, Number(scores[team.id]) || 0)])))
+    setFinalOpen(true)
+  }
+  const resolveFinalJeopardy = () => {
+    setScores((current) => Object.fromEntries(game.teams.map((team) => {
+      const wager = Math.max(0, Number(finalWagers[team.id]) || 0)
+      return [team.id, (Number(current[team.id]) || 0) + (finalOutcomes[team.id] ? wager : -wager)]
+    })))
+    setFinalResolved(true)
+    setFinalOpen(false)
+  }
 
-  if (editing) return <Builder game={game} gameId={gameId} games={games} openGame={openGame} newGame={newGame} error={error} ready={ready} start={start} update={update} modifyCategory={modifyCategory} handleLogout={confirmLogout} showLogoutConfirm={showLogoutConfirm} cancelLogout={cancelLogout} handleLogoutConfirm={handleLogout} roomCode={roomCode} />
-  return <main className="game-shell">
-    <header className="topbar"><div><p className="eyebrow">LIVE GAME</p><h1>{game.title}</h1></div><div className="header-actions"><button className="secondary-button" onClick={() => setEditing(true)}>Game editor</button><button className="new-game" onClick={reset}>↻ Reset scores</button><button className="logout-button" onClick={confirmLogout}>Log out</button></div></header>
-    <section className="scoreboard" aria-label="Scoreboard">{game.teams.map((team, index) => <ScoreCard key={team.id} label={team.name || `Team ${index + 1}`} score={scores[team.id] || 0} tone={index % 2 ? 'pink' : 'gold'} />)}</section>
-    <section className="board" aria-label="Jeopardy game board" style={{ '--columns': game.categories.length }}>{game.categories.map((cat) => <div className="category" key={cat.id}><div className="category-title">{cat.title}</div>{cat.clues.map((item) => <button key={item.id} className={`clue ${used.includes(item.id) ? 'used' : ''}`} disabled={used.includes(item.id)} onClick={() => { setSelectedId(item.id); setShowAnswer(false) }}>{used.includes(item.id) ? '' : `$${Number(item.value).toLocaleString()}`}</button>)}</div>)}</section>
-    <p className="hint">Select a question, reveal its answer, then award its configured value.</p>
-    {selected && <div className="modal-backdrop" role="presentation" onMouseDown={close}><section className="clue-modal" role="dialog" aria-modal="true" aria-label="Selected question" onMouseDown={(event) => event.stopPropagation()}><button className="close" onClick={close} aria-label="Close question">×</button><p className="modal-category">{selected.cat.title} · ${Number(selected.item.value).toLocaleString()}</p><p className="clue-text">{showAnswer ? selected.item.answer : selected.item.question}</p>{showAnswer ? <div className="scoring"><p>Who got it right?</p><div>{game.teams.map((team) => <button className="team-score" key={team.id} onClick={() => score(team.id)}>+ {team.name || 'Unnamed team'}</button>)}</div><button className="no-one" onClick={finish}>No correct answer</button></div> : <button className="reveal" onClick={() => setShowAnswer(true)}>Reveal answer</button>}</section></div>}
-    {showLogoutConfirm && <div className="modal-backdrop" role="presentation" onMouseDown={cancelLogout}><section className="logout-confirmation" role="dialog" aria-modal="true" aria-label="Confirm sign out" onMouseDown={(event) => event.stopPropagation()}><h2>Sign out of Microsoft?</h2><p>You’ll need to sign in again to access the game.</p><div className="logout-actions"><button className="secondary-button" onClick={cancelLogout}>Cancel</button><button className="logout-button" onClick={handleLogout}>Yes, sign out</button></div></section></div>}
-  </main>
+  if (editing) return <GameEditor game={game} gameId={gameId} games={games} openGame={openGame} newGame={newGame} deleteGame={deleteGame} importSheet={importSheet} error={error} ready={ready} start={start} update={update} modifyCategory={modifyCategory} handleLogout={confirmLogout} showLogoutConfirm={showLogoutConfirm} cancelLogout={cancelLogout} handleLogoutConfirm={handleLogout} roomCode={roomCode} />
+  return <GameBoard game={game} scores={scores} used={used} selected={selected} showAnswer={showAnswer} onOpenClue={(clueId) => { setSelectedId(clueId); setShowAnswer(false) }} onCloseClue={close} onRevealAnswer={() => setShowAnswer(true)} onScore={score} onFinish={finish} onEdit={() => setEditing(true)} onReset={reset} onLogout={confirmLogout} logoutOpen={showLogoutConfirm} onCancelLogout={cancelLogout} onConfirmLogout={handleLogout} allCluesAnswered={allCluesAnswered} finalJeopardyReady={Boolean(finalJeopardyReady)} finalResolved={finalResolved} finalOpen={finalOpen} onBeginFinal={beginFinalJeopardy} finalWagers={finalWagers} onSetFinalWager={(teamId, wager) => setFinalWagers((current) => ({ ...current, [teamId]: wager }))} finalRevealed={finalRevealed} onRevealFinal={() => setFinalRevealed(true)} finalOutcomes={finalOutcomes} onSetFinalOutcome={(teamId, correct) => setFinalOutcomes((current) => ({ ...current, [teamId]: correct }))} onResolveFinal={resolveFinalJeopardy} onCloseFinal={() => setFinalOpen(false)} />
 }
 
-function Builder({ game, gameId, games, openGame, newGame, error, ready, start, update, modifyCategory, handleLogout, showLogoutConfirm, cancelLogout, handleLogoutConfirm, roomCode }) {
+/* Editor implementation moved to pages/GameEditor.jsx.
+function Builder({ game, gameId, games, openGame, newGame, importSheet, error, ready, start, update, modifyCategory, handleLogout, showLogoutConfirm, cancelLogout, handleLogoutConfirm, roomCode }) {
   const addTeam = () => update((current) => ({ ...current, teams: [...current.teams, { id: id(), name: `Team ${current.teams.length + 1}` }] }))
   const updateTeam = (teamId, name) => update((current) => ({ ...current, teams: current.teams.map((team) => team.id === teamId ? { ...team, name } : team) }))
   const addCategory = () => update((current) => ({ ...current, categories: [...current.categories, category()] }))
+  const [sheetUrl, setSheetUrl] = useState('')
+  const [importing, setImporting] = useState(false)
   const copyCode = async () => {
     if (!roomCode) return
     try {
@@ -207,6 +261,20 @@ function Builder({ game, gameId, games, openGame, newGame, error, ready, start, 
   const gameOptions = games.some((item) => item.id === gameId)
     ? games
     : [{ id: gameId, title: game.title }, ...games]
+
+  const submitSheetImport = async (event) => {
+    event.preventDefault()
+    if (!sheetUrl.trim() || importing) return
+    setImporting(true)
+    try {
+      await importSheet(sheetUrl.trim())
+      setSheetUrl('')
+    } catch {
+      // The request error is displayed by the editor.
+    } finally {
+      setImporting(false)
+    }
+  }
 
   return <main className="builder-shell">
     <header className="topbar">
@@ -224,6 +292,13 @@ function Builder({ game, gameId, games, openGame, newGame, error, ready, start, 
         </select>
       </label>
       <button className="secondary-button" type="button" onClick={newGame}>New game</button>
+    </section>
+    <section className="sheet-import" aria-labelledby="sheet-import-title">
+      <div><p className="eyebrow">GOOGLE SHEETS</p><h2 id="sheet-import-title">Import a game board</h2><p>Share the sheet with “Anyone with the link.” Use either Category, Question, and Answer columns, or Category followed by repeating Question/Answer pairs. A Final row can include its question, answer, and category.</p></div>
+      <form onSubmit={submitSheetImport}>
+        <label htmlFor="google-sheet-url">Google Sheets link or ID</label>
+        <div className="sheet-import-controls"><input id="google-sheet-url" type="text" value={sheetUrl} onChange={(event) => setSheetUrl(event.target.value)} placeholder="https://docs.google.com/spreadsheets/d/..." /><button className="secondary-button" type="submit" disabled={!sheetUrl.trim() || importing}>{importing ? 'Importing…' : 'Import sheet'}</button></div>
+      </form>
     </section>
     {error && <p className="login-error" role="alert">{error}</p>}
     <p className="builder-intro">Edit the title, teams, categories, questions, and answers. Point values are assigned automatically, and changes save automatically.</p>
@@ -257,6 +332,6 @@ function CategoryEditor({ cat, index, modify, remove }) {
     <button className="add-clue" onClick={() => modify(cat.id, (current) => ({ ...current, clues: [...current.clues, clue((current.clues.length + 1) * 100)] }))}>+ Add question</button>
   </article>
 }
+*/
 
-function ScoreCard({ label, score, tone }) { return <article className={`score-card ${tone}`}><span>{label}</span><strong>${score.toLocaleString()}</strong></article> }
 export default App

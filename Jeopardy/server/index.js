@@ -56,15 +56,9 @@ app.use(session({
 }))
 
 const createGame = () => ({ title: 'Classroom Jeopardy', teams: [], categories: [] })
-const initialProgress = (game) => ({ scores: Object.fromEntries(game.teams.map((team) => [team.id, 0])), usedClues: [] })
+const initialProgress = (game) => ({ scores: Object.fromEntries(game.teams.map((team) => [team.id, 0])), usedClues: [], finalWagers: {}, finalOutcomes: {}, finalRevealed: false, finalResolved: false })
 
 const saveSession = (request) => new Promise((resolve, reject) => request.session.save((error) => error ? reject(error) : resolve()))
-
-function requireAuthentication(request, response, next) {
-  if (request.session.user) return next()
-  return response.status(401).json({ error: `Sign in with Microsoft to access this game.` })
-  //return response.status(401).json({ error: `Sign in with Microsoft to access this game. ${JSON.stringify(request.session)}` })
-}
 
 async function readStore() {
   await mkdir(dataDir, { recursive: true })
@@ -108,6 +102,163 @@ async function getOrCreateGame(gameId) {
   }
 
   return { store, record }
+}
+
+function newGameRecord(store) {
+  const gameId = randomUUID()
+  const game = { ...createGame(), title: 'Untitled Game' }
+  const now = new Date().toISOString()
+  return { id: gameId, game, progress: initialProgress(game), code: generateGameCode(store), createdAt: now, updatedAt: now }
+}
+
+function parseCsv(text) {
+  const rows = []
+  let row = []
+  let value = ''
+  let quoted = false
+
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index]
+    if (quoted) {
+      if (character === '"' && text[index + 1] === '"') { value += '"'; index += 1 } else if (character === '"') quoted = false
+      else value += character
+    } else if (character === '"') quoted = true
+    else if (character === ',') { row.push(value); value = '' }
+    else if (character === '\n') { row.push(value); rows.push(row); row = []; value = '' }
+    else if (character !== '\r') value += character
+  }
+
+  if (value || row.length) { row.push(value); rows.push(row) }
+  return rows.filter((current) => current.some((cell) => cell.trim()))
+}
+
+function columnName(value) {
+  return String(value || '').trim().toLowerCase().replace(/[\s_-]+/g, '')
+}
+
+function badSheetRequest(message) {
+  const error = new Error(message)
+  error.status = 400
+  return error
+}
+
+function googleSheetDetails(value) {
+  const input = String(value || '').trim()
+  const match = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/)
+  const sheetId = match?.[1] || (/^[a-zA-Z0-9_-]{20,}$/.test(input) ? input : '')
+  if (!sheetId) throw badSheetRequest('Paste a valid Google Sheets link or spreadsheet ID.')
+
+  let gid = '0'
+  try {
+    const parsed = new URL(input)
+    gid = parsed.searchParams.get('gid') || parsed.hash.match(/gid=(\d+)/)?.[1] || gid
+  } catch { /* A spreadsheet ID does not need URL parsing. */ }
+  return { sheetId, gid }
+}
+
+function cellRangeBounds(value) {
+  if (!String(value || '').trim()) return null
+  const match = String(value).trim().match(/^\$?([A-Z]+)\$?(\d+):\$?([A-Z]+)\$?(\d+)$/i)
+  if (!match) throw badSheetRequest('Enter a rectangular cell range such as A1:J7.')
+  const columnNumber = (letters) => [...letters.toUpperCase()].reduce((number, letter) => number * 26 + letter.charCodeAt(0) - 64, 0)
+  const bounds = { startColumn: columnNumber(match[1]) - 1, startRow: Number(match[2]) - 1, endColumn: columnNumber(match[3]) - 1, endRow: Number(match[4]) - 1 }
+  if (bounds.startRow < 0 || bounds.startColumn < 0 || bounds.startRow > bounds.endRow || bounds.startColumn > bounds.endColumn) {
+    throw badSheetRequest('The cell range must start at the top-left and end at the bottom-right, for example A1:J7.')
+  }
+  return bounds
+}
+
+async function googleSheetTitle(sheetId, fallback) {
+  try {
+    const response = await fetch(`https://docs.google.com/spreadsheets/d/${encodeURIComponent(sheetId)}/edit`)
+    if (!response.ok) return fallback
+    const html = await response.text()
+    const title = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]
+      ?.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+      .replace(/\s*-\s*Google Sheets\s*$/i, '').trim()
+    return title || fallback
+  } catch { return fallback }
+}
+
+function gameFromSheet(csv, title, range) {
+  let sheetRows = parseCsv(csv)
+  const bounds = cellRangeBounds(range)
+  if (bounds) {
+    sheetRows = sheetRows.slice(bounds.startRow, bounds.endRow + 1).map((row) => {
+      const selected = row.slice(bounds.startColumn, bounds.endColumn + 1)
+      while (selected.length < bounds.endColumn - bounds.startColumn + 1) selected.push('')
+      return selected
+    })
+  }
+  const [headers, ...rows] = sheetRows
+  if (!headers?.length) throw badSheetRequest('The sheet is empty.')
+
+  // Wide board layout: Category in column A, then alternating Question/Answer
+  // pairs. Each subsequent row is a category and can contain several clues.
+  const normalizedHeaders = headers.map(columnName)
+  if (normalizedHeaders[0] === 'category' && normalizedHeaders[1] === 'question' && normalizedHeaders[2] === 'answer'
+    && normalizedHeaders[3] === 'question' && normalizedHeaders[4] === 'answer') {
+    const categories = new Map()
+    let finalJeopardy = null
+    rows.forEach((row) => {
+      const label = row[0]?.trim()
+      if (!label) return
+
+      // The final row stores its category in column D and its clue in B/C.
+      if (label.toLowerCase() === 'final') {
+        const question = row[1]?.trim()
+        const answer = row[2]?.trim()
+        if (question || answer) {
+          if (!question || !answer) throw badSheetRequest('The final round needs both a question and an answer.')
+          finalJeopardy = { category: row[3]?.trim() || 'Final', question, answer }
+        }
+        return
+      }
+
+      if (!categories.has(label)) categories.set(label, { id: randomUUID(), title: label, clues: [] })
+      const category = categories.get(label)
+      for (let questionColumn = 1; questionColumn < headers.length; questionColumn += 2) {
+        const question = row[questionColumn]?.trim()
+        const answer = row[questionColumn + 1]?.trim()
+        if (!question && !answer) continue
+        if (!question || !answer) throw badSheetRequest(`Every question in “${label}” needs both a question and an answer.`)
+        category.clues.push({ id: randomUUID(), value: (category.clues.length + 1) * 100, question, answer })
+      }
+    })
+    if (!categories.size) throw badSheetRequest('No questions were found in the sheet.')
+    return { title, teams: [], categories: [...categories.values()], ...(finalJeopardy ? { finalJeopardy } : {}) }
+  }
+
+  const columns = Object.fromEntries(headers.map((header, index) => [columnName(header), index]))
+  const categoryColumn = columns.category ?? columns.cat
+  const questionColumn = columns.question ?? columns.clue
+  const answerColumn = columns.answer ?? columns.response
+  const valueColumn = columns.value ?? columns.points ?? columns.pointvalue
+  if ([categoryColumn, questionColumn, answerColumn].some((column) => column === undefined)) {
+    throw badSheetRequest('The first row must include Category, Question, and Answer columns. Value is optional.')
+  }
+
+  const categories = new Map()
+  rows.forEach((row) => {
+    const categoryTitle = row[categoryColumn]?.trim()
+    const question = row[questionColumn]?.trim()
+    const answer = row[answerColumn]?.trim()
+    if (!categoryTitle && !question && !answer) return
+    if (!categoryTitle || !question || !answer) throw badSheetRequest('Every imported row needs a category, question, and answer.')
+
+    if (!categories.has(categoryTitle)) categories.set(categoryTitle, { id: randomUUID(), title: categoryTitle, clues: [] })
+    const category = categories.get(categoryTitle)
+    const suppliedValue = Number(row[valueColumn])
+    category.clues.push({
+      id: randomUUID(),
+      value: Number.isFinite(suppliedValue) && suppliedValue > 0 ? suppliedValue : (category.clues.length + 1) * 100,
+      question,
+      answer,
+    })
+  })
+
+  if (!categories.size) throw badSheetRequest('No questions were found in the sheet.')
+  return { title, teams: [], categories: [...categories.values()] }
 }
 
 app.get('/api/health', (_request, response) => response.json({ status: 'ok' }))
@@ -177,7 +328,37 @@ app.get('/api/public/games/:code', async (request, response, next) => {
   } catch (error) { next(error) }
 })
 
-app.use('/api/games', requireAuthentication)
+app.post('/api/public/games', async (_request, response, next) => {
+  try {
+    const store = await readStore()
+    const record = newGameRecord(store)
+    store.games[record.id] = record
+    await writeStore(store)
+    response.status(201).json(record)
+  } catch (error) { next(error) }
+})
+
+app.post('/api/games/:gameId/import/google-sheets', async (request, response, next) => {
+  try {
+    const { sheetUrl, cellRange } = request.body
+    const { sheetId, gid } = googleSheetDetails(sheetUrl)
+    const exportUrl = `https://docs.google.com/spreadsheets/d/${encodeURIComponent(sheetId)}/export?format=csv&gid=${encodeURIComponent(gid)}`
+    const sheetResponse = await fetch(exportUrl)
+    if (!sheetResponse.ok) throw new Error('Google could not open that sheet. Set sharing to “Anyone with the link” and try again.')
+
+    const { store, record } = await getOrCreateGame(request.params.gameId)
+    const sheetTitle = await googleSheetTitle(sheetId, record.game.title)
+    record.game = gameFromSheet(await sheetResponse.text(), sheetTitle, cellRange)
+    record.progress = initialProgress(record.game)
+    record.updatedAt = new Date().toISOString()
+    await writeStore(store)
+    response.json(record)
+  } catch (error) {
+    if (error.status === 400) return response.status(400).json({ error: error.message })
+    if (error instanceof TypeError) return response.status(400).json({ error: 'Unable to retrieve that Google Sheet.' })
+    next(error)
+  }
+})
 
 app.get('/api/games', async (_request, response, next) => {
   try {
@@ -192,11 +373,8 @@ app.get('/api/games', async (_request, response, next) => {
 app.post('/api/games', async (_request, response, next) => {
   try {
     const store = await readStore()
-    const gameId = randomUUID()
-    const game = { ...createGame(), title: 'Untitled Game' }
-    const now = new Date().toISOString()
-    const record = { id: gameId, game, progress: initialProgress(game), code: generateGameCode(store), createdAt: now, updatedAt: now }
-    store.games[gameId] = record
+    const record = newGameRecord(store)
+    store.games[record.id] = record
     await writeStore(store)
     response.status(201).json(record)
   } catch (error) { next(error) }
@@ -204,6 +382,16 @@ app.post('/api/games', async (_request, response, next) => {
 
 app.get('/api/games/:gameId', async (request, response, next) => {
   try { const { record } = await getOrCreateGame(request.params.gameId); response.json(record) } catch (error) { next(error) }
+})
+
+app.delete('/api/games/:gameId', async (request, response, next) => {
+  try {
+    const store = await readStore()
+    if (!store.games[request.params.gameId]) return response.status(404).json({ error: 'That game could not be found.' })
+    delete store.games[request.params.gameId]
+    await writeStore(store)
+    response.json({ deleted: true })
+  } catch (error) { next(error) }
 })
 
 app.put('/api/games/:gameId', async (request, response, next) => {
@@ -219,10 +407,10 @@ app.put('/api/games/:gameId', async (request, response, next) => {
 
 app.put('/api/games/:gameId/progress', async (request, response, next) => {
   try {
-    const { scores, usedClues } = request.body
+    const { scores, usedClues, finalWagers = {}, finalOutcomes = {}, finalRevealed = false, finalResolved = false } = request.body
     if (!scores || !Array.isArray(usedClues)) return response.status(400).json({ error: 'Scores and used clues are required.' })
     const { store, record } = await getOrCreateGame(request.params.gameId)
-    record.progress = { scores, usedClues }
+    record.progress = { scores, usedClues, finalWagers, finalOutcomes, finalRevealed, finalResolved }
     record.updatedAt = new Date().toISOString()
     await writeStore(store)
     response.json(record.progress)

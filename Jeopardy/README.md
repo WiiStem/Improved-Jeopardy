@@ -82,6 +82,16 @@ The Game Editor can create new games and reopen saved games. It remembers the la
 - `PUT /api/games/:gameId/progress` — save `{ "scores": ..., "usedClues": [...] }`
 - `POST /api/games/:gameId/reset` — reset scores and used clues
 
+## Import from Google Sheets
+
+In the Game Editor, paste a Google Sheets link (or spreadsheet ID) into **Import a game board**. The sheet must be shared as **Anyone with the link**. The selected tab is imported when the URL contains its `gid`.
+
+Use this header row; `Value` is optional and defaults to $100, $200, and so on within each category:
+
+| Category | Question | Answer | Value |
+| --- | --- | --- | --- |
+| Science | This gas makes up most of Earth's atmosphere. | Nitrogen | 100 |
+
 Game data is persisted to `data/games.json`, which is deliberately excluded from Git so local games are not committed.
 
 ## Production
